@@ -2,6 +2,8 @@ import json
 import sys
 import time
 import webbrowser
+import uuid
+import subprocess as sub
 from win32api import GetSystemMetrics
 
 import pyautogui
@@ -16,9 +18,17 @@ class Bot:
     miniclipURL = "https://www.miniclip.com/games/8-ball-pool-multiplayer/en/focus/"
 
     def __init__(self):
+        self.name = self.uuidGenerator()
         self.height = None
         self.width = None
         self.gameWindow = None
+
+    def uuidGenerator(self):
+        stringLength = 8
+
+        randomString = uuid.uuid4().hex
+        randomString = randomString.lower()[0:stringLength]
+        return randomString
 
     def gameMenuSearch(self, r):
         imgs = [constants.img_alreadyStarted, constants.img_alreadyStarted1]
@@ -30,11 +40,26 @@ class Bot:
                 pos = utils.imageSearch(img)
                 if pos is None:
                     utils.debugPrint("Attempts: " + str(r - i))
+                    self.dismiss(1)
                     time.sleep(.5)
                 else:
                     return True
 
         return False
+
+    def dismiss(self, r):
+        imgs = [constants.img_cueUpdate, constants.img_cues, constants.img_backButton]
+        utils.debugPrint("Checking for cue notification.")
+        r += 1
+        for img in imgs:
+            utils.debugPrint("Image {}...".format(img))
+            for i in range(0, r + 1):
+                pos = utils.imageSearch(constants.img_cueUpdate)
+                if pos is None:
+                    utils.debugPrint("Attempts: " + str(r-i))
+                    time.sleep(.1)
+                else:
+                    return True
 
     def click(self, img, gameWindow):
         for i in range(0, 5):
@@ -47,11 +72,14 @@ class Bot:
                 continue
             else:
                 pyautogui.click(pos)
-                utils.debugPrint("Image found and clicked.")
+                utils.debugPrint("{} found and clicked.".format(img))
                 time.sleep(.5)
                 break
 
     def start(self):
+        uuid = self.uuidGenerator()
+        print("Bot {} beginning setup.".format(uuid))
+
         # Checks if webpage still present
         result = utils.CheckForUrl(5)
 
@@ -70,12 +98,12 @@ class Bot:
             if login is None:
                 utils.debugPrint("Error confirming login status. Waiting 10 seconds and attempting once more.")
                 time.sleep(10)
-                gameReg = self.getGameRegion(login)
                 login = self.ifLogin()
                 if login is None:
                     utils.debugPrint("Login systems failed. Cannot proceed.\nExiting..")
                     time.sleep(2)
                     sys.exit()
+
             # login status confirmed, either logged in or not
             # if login is None, exits. login is either True or False
             gameReg = self.getGameRegion(login)
@@ -87,6 +115,7 @@ class Bot:
                     utils.debugPrint("Acquisition of game region failed. Cannot proceed.\nExiting..")
                     time.sleep(2)
                     sys.exit()
+
             # game region successfully acquired
             if login is False:
                 # user not logged in, navigate menu that only shows for users not logged in
@@ -97,27 +126,29 @@ class Bot:
                 else:
                     # log in and play game
                     self.logIn()
+
             time.sleep(.5)
-            self.spinWin()
-            self.collectCoins()
+            #self.spinWin(5)
+            #self.collectCoins(5)
             dG = self.decideGame(5)
             if dG is False:
                 utils.debugPrint("Game choice not made. Cannot proceed.\nExiting..")
                 time.sleep(2)
                 sys.exit()
-            play = self.playPoolGame()
-            if play is True:
-                while play is True:
-                    pA = utils.timedInput("Play another game? Press CTRL+C to begin typing.", 15)
-                    if pA is True:
-                        play = self.playPoolGame()
-                    else:
-                        utils.debugPrint("Exiting..")
-                        time.sleep(2)
-                        sys.exit()
-            utils.debugPrint("Terminating Bot..")
-            time.sleep(3)
-            sys.exit()
+            else:
+                play = self.playPoolGame()
+                if play is True:
+                    while play is True:
+                        pA = utils.timedInput("Play another game? Press CTRL+C to begin typing.", 15)
+                        if pA is True:
+                            play = self.playPoolGame()
+                        else:
+                            utils.debugPrint("Exiting..")
+                            time.sleep(2)
+                            sys.exit()
+                utils.debugPrint("Terminating Bot..")
+                time.sleep(3)
+                sys.exit()
 
     def ifLogin(self):
         limit = 30
@@ -303,8 +334,8 @@ class Bot:
             return True
         else:
             utils.debugPrint("Region not found. Attempting {} more times.".format(attempts))
-            self.spinWin()
-            self.clickX()
+            #self.spinWin()
+            #self.clickX()
             while attempts > 0:
                 reg = pyautogui.locateOnScreen(utils.imagePath(img))
                 if reg is None:
@@ -389,19 +420,28 @@ class Bot:
                             utils.debugPrint("Game menu reacquired..")
                             break
 
-            choice = utils.timedInput("Play with \"friends\" or \"randoms\"? Press Control+C to begin typing. ", 30,
-                                ["friend", "random"])
+            choice = utils.timedInput("\"Practice\"? or \"Play\"? Press Control+C to begin typing. ", 30,
+                                ["practice", "play"])
             if choice is True:
-                gamechoice = self.playFriends()
+                gamechoice = self.playPractice()
             else:
-                gamechoice = self.playRandoms()
+                playChoice = utils.timedInput("Play with \"friends\" or \"randoms\"? Press Control+C to begin typing. ", 30,
+                                ["friend", "random"])
+                if playChoice is True:
+                    gamechoice = self.playFriends()
+                else:
+                    gamechoice = self.playRandoms()
 
-            if gamechoice is True:
-                return True
-            else:
-                self.click(constants.img_mainMenuBefore, self.gameWindow)
+                if gamechoice is True:
+                    return True
+                else:
+                    self.click(constants.img_mainMenuBefore, self.gameWindow)
 
         return False
+
+    def playPractice(self):
+        utils.debugPrint("Practicing")
+        # TODO
 
     def playRandoms(self):
         utils.debugPrint("Playing against random opponent.")
@@ -438,6 +478,7 @@ class Bot:
     def playFriends(self):
         utils.debugPrint("Playing against \"friendly\" opponent.")
         self.click(constants.img_playFriends, self.gameWindow)
+        time.sleep(.5)
         pos = utils.imageSearch(constants.img_searchFriends, self.gameWindow)
         if pos is None:
             return False
@@ -459,6 +500,7 @@ class Bot:
                         while pos is None:
                             self.click(constants.img_cheapButtonFriend, self.gameWindow)
                             pos = utils.imageSearch(constants.img_poolChoice1, self.gameWindow)
+                        self.click(constants.img_poolChoice1, self.gameWindow)
                     else:
                         self.click(constants.img_poolChoice1, self.gameWindow)
                 else:
@@ -467,8 +509,15 @@ class Bot:
                         while pos is None:
                             self.click(constants.img_cheapButtonFriend, self.gameWindow)
                             pos = utils.imageSearch(constants.img_poolChoice200_1, self.gameWindow)
+                        self.click(constants.img_poolChoice200_1, self.gameWindow)
                     else:
                         self.click(constants.img_poolChoice200_1, self.gameWindow)
+
+                pos = utils.imageSearch(constants.img_playNow, self.gameWindow)
+                while pos is None:
+                    pos = utils.imageSearch(constants.img_playNow, self.gameWindow)
+
+                self.click(constants.img_playNow, self.gameWindow)
 
                 return True
             else:
@@ -505,6 +554,13 @@ class Bot:
                         self.click(constants.img_cheapButtonFriend, self.gameWindow)
                         pos = utils.imageSearch(constants.img_poolChoice1, self.gameWindow)
                     self.click(constants.img_poolChoice1, self.gameWindow)
+
+                    pos = utils.imageSearch(constants.img_playNow, self.gameWindow)
+                    while pos is None:
+                        pos = utils.imageSearch(constants.img_playNow, self.gameWindow)
+
+                    self.click(constants.img_playNow, self.gameWindow)
+
                     return True
                 else:
                     print("Can\'t challenge friend.")
@@ -540,7 +596,7 @@ class Bot:
             return False
         return True
 
-    def spinWin(self):
+    def spinWin(self, attempts):
         tries_2 = 15
         time.sleep(1)
         gM = self.gameMenuSearch(5)
@@ -613,6 +669,19 @@ class Bot:
                 pyautogui.click(pos)
                 time.sleep(1)
 
+    def luckyShot(self, attempts):
+        attempts += 1
+        for i in range(0, attempts):
+            time.sleep(.1)
+            pos = utils.imageSearch(constants.img_luckyShot)
+            if pos is None:
+                continue
+            else:
+                pos = utils.imageSearch(constants.img_playFree)
+                if pos is not None:
+                    self.click(constants.img_playFree)
+                    utils.debugPrint("LuckyShot minigame beginning")
+
     def clickX(self):
         xtries = 5
         utils.debugPrint("Searching for \"X\"s...")
@@ -649,20 +718,21 @@ class Bot:
 
         time.sleep(5)
 
-
+def startBot():
+    bot1 = Bot()
+    print("Bot {} initialized.".format(bot1.name))
 
 def main():
     resolutions = ["1920x1080", "1680x1050", "1600x900", "1440x900", "1366x768", "1360x768", "1280x1024", "1280x800"]
-    currentRes = (str(GetSystemMetrics(0)) + "x" + str(GetSystemMetrics(1)))
+    currentRes = str(GetSystemMetrics(0)) + "x" + str(GetSystemMetrics(1))
     if currentRes not in resolutions:
         print("*Resolution not supported* \nSupported Resolutions: " + " - ".join(str(i) for i in resolutions))
     else:
         print("Detected Supported Screen Resolution: {}".format(currentRes))
-        time.sleep(1)
         print("-" * 47 + "\nThis bot has been tested to work in Google Chrome.\nFunctionality with other browsers is"
                          " not currently available.")
         start = utils.timedInput("Launch bot? Press CTRL+C to being typing. ", 30, ["yes", "no"])
-        if start is None or start is False:
+        if start is False:
             print("Exiting..")
             sys.exit()
         else:
