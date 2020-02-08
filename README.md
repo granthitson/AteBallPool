@@ -5,5 +5,5 @@ Python bot.
 
 ![Table Mask](/games/game1206/temp.png)
 
-![table](/games/game1206/table/pooltabel1.png)
-![outlined](/games/game1206/outlined/pooltabel1.png)
+![table](/games/game1206/table/pooltable1.png)
+![outlined](/games/game1206/outlined/pooltable1.png)
